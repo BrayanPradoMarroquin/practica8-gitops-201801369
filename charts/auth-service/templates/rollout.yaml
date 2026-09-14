@@ -1,6 +1,8 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   name: {{ include "auth-service.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
@@ -12,10 +14,25 @@ spec:
       app.kubernetes.io/name: {{ include "auth-service.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    canary:
+      canaryService: {{ include "auth-service.fullname" . }}-canary
+      stableService: {{ include "auth-service.fullname" . }}-stable
+      trafficRouting:
+        nginx:
+          stableIngress: {{ include "auth-service.fullname" . }}-ingress
+      steps:
+        - setWeight: 20
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - setWeight: 100
+      analysis:
+        templates:
+          - templateName: auth-service-smoke-test
+        startingStep: 0
+        args:
+          - name: service-name
+            value: {{ include "auth-service.fullname" . }}-canary
   template:
     metadata:
       labels:
@@ -51,7 +68,6 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          {{- if .Values.probes.enabled }}
           livenessProbe:
             httpGet:
               path: /health
@@ -64,4 +80,3 @@ spec:
               port: {{ .Values.service.port }}
             initialDelaySeconds: 10
             periodSeconds: 5
-          {{- end }}
