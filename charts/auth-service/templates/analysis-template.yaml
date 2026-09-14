@@ -24,12 +24,12 @@ spec:
                 restartPolicy: Never
                 containers:
                   - name: smoke
-                    image: curlimages/curl:latest
+                    image: busybox:latest
                     command:
                       - sh
                       - -c
                       - |
-                        curl -sf http://{{ `{{ args.service-name }}` }}.{{ `{{ args.namespace }}` }}.svc.cluster.local:3001/health | grep -q '"status":"OK"'
+                        wget -qO- http://{{ `{{ args.service-name }}` }}.{{ `{{ args.namespace }}` }}.svc.cluster.local:3001/health | grep -q '"status":"OK"'
     - name: latency-test
       interval: 30s
       count: 2
