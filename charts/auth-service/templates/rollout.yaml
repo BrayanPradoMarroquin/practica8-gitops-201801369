@@ -17,9 +17,6 @@ spec:
     canary:
       canaryService: {{ include "auth-service.fullname" . }}-canary
       stableService: {{ include "auth-service.fullname" . }}-stable
-      trafficRouting:
-        nginx:
-          stableIngress: {{ include "auth-service.fullname" . }}-ingress
       steps:
         - setWeight: 20
         - pause: { duration: 30s }
