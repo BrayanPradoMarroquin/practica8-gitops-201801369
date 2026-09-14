@@ -1,1 +1,25 @@
-repoURL: https://github.com/BrayanPradoMarroquin/practica8-gitops-201801369.git
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: books-service
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/BrayanPradoMarroquin/practica8-gitops-201801369.git
+    targetRevision: main
+    path: charts/books-service
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sa-p8
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
