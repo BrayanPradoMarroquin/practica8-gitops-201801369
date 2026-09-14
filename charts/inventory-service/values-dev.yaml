@@ -1,0 +1,10 @@
+replicaCount: 1
+image:
+  tag: "1.0.0-dev"
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "100m"
+    memory: "128Mi"
