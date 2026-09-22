@@ -1,6 +1,10 @@
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "~> 2.30"
@@ -8,12 +12,88 @@ terraform {
   }
 }
 
-provider "kubernetes" {
-  config_path = "~/.kube/config"
-  config_context = "docker-desktop"  # Cambia si usas otro contexto
+# ------------------------------------------------------------------
+# Provider de Google Cloud
+# ------------------------------------------------------------------
+provider "google" {
+  project = var.project_id
+  region  = var.region
+  zone    = var.zone
 }
 
+# ------------------------------------------------------------------
+# Cluster GKE
+# ------------------------------------------------------------------
+resource "google_container_cluster" "primary" {
+  name     = var.cluster_name
+  location = var.zone
+
+  # Elimina el node pool por defecto para definirlo aparte
+  remove_default_node_pool = true
+  initial_node_count       = 1
+
+  # Evita que terraform bloquee el destroy por protección
+  deletion_protection = false
+
+  # Desactiva la red autorizada para el master (más simple para prácticas)
+  master_authorized_networks_config {
+    cidr_blocks {
+      cidr_block   = "0.0.0.0/0"
+      display_name = "all"
+    }
+  }
+
+  # Canal de release estable
+  release_channel {
+    channel = "REGULAR"
+  }
+}
+
+resource "google_container_node_pool" "primary_nodes" {
+  name     = "primary-pool"
+  location = var.zone
+  cluster  = google_container_cluster.primary.name
+
+  node_count = 1
+
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 3
+  }
+
+  node_config {
+    machine_type = "e2-small"
+    disk_size_gb = 20
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+
+    labels = {
+      "practica" = "p8"
+    }
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+}
+
+# ------------------------------------------------------------------
+# Provider de Kubernetes apuntando al cluster GKE recién creado
+# ------------------------------------------------------------------
+data "google_client_config" "default" {}
+
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.primary.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+}
+
+# ------------------------------------------------------------------
 # Namespace principal
+# ------------------------------------------------------------------
 resource "kubernetes_namespace" "sa_p8" {
   metadata {
     name = var.namespace
@@ -24,7 +104,9 @@ resource "kubernetes_namespace" "sa_p8" {
   }
 }
 
+# ------------------------------------------------------------------
 # ResourceQuota
+# ------------------------------------------------------------------
 resource "kubernetes_resource_quota" "sa_p8_quota" {
   metadata {
     name      = "sa-p8-quota"
@@ -32,18 +114,20 @@ resource "kubernetes_resource_quota" "sa_p8_quota" {
   }
   spec {
     hard = {
-      "requests.cpu"    = "2"
-      "requests.memory" = "4Gi"
-      "limits.cpu"      = "4"
-      "limits.memory"   = "8Gi"
-      "pods"            = "20"
-      "services"        = "10"
+      "requests.cpu"           = "2"
+      "requests.memory"        = "4Gi"
+      "limits.cpu"             = "4"
+      "limits.memory"          = "8Gi"
+      "pods"                   = "20"
+      "services"               = "10"
       "persistentvolumeclaims" = "5"
     }
   }
 }
 
+# ------------------------------------------------------------------
 # LimitRange
+# ------------------------------------------------------------------
 resource "kubernetes_limit_range" "sa_p8_limits" {
   metadata {
     name      = "sa-p8-limits"
@@ -72,7 +156,9 @@ resource "kubernetes_limit_range" "sa_p8_limits" {
   }
 }
 
+# ------------------------------------------------------------------
 # ServiceAccount para ArgoCD (deployments)
+# ------------------------------------------------------------------
 resource "kubernetes_service_account" "argo_deployer" {
   metadata {
     name      = "argo-deployer"
@@ -80,7 +166,9 @@ resource "kubernetes_service_account" "argo_deployer" {
   }
 }
 
+# ------------------------------------------------------------------
 # Role para despliegues
+# ------------------------------------------------------------------
 resource "kubernetes_role" "deployer_role" {
   metadata {
     name      = "deployer-role"
@@ -93,7 +181,9 @@ resource "kubernetes_role" "deployer_role" {
   }
 }
 
+# ------------------------------------------------------------------
 # RoleBinding
+# ------------------------------------------------------------------
 resource "kubernetes_role_binding" "deployer_binding" {
   metadata {
     name      = "deployer-binding"
