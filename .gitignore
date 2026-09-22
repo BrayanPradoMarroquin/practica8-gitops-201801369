@@ -5,3 +5,6 @@
 .terraform.lock.hcl
 crash.log
 *.tfvars
+f
+terraform/pass.b64
+terraform/pass.txt
