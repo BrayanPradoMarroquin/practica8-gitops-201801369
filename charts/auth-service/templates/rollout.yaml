@@ -39,9 +39,9 @@ spec:
               value: {{ .Values.env.DB_NAME | quote }}
             - name: DB_USER
               value: {{ .Values.env.DB_USER | quote }}
-            - name: DB_PASSWORD
-            - name: FAIL_MODE                                        # ← AÑADIR
+            - name: FAIL_MODE
               value: {{ .Values.env.FAIL_MODE | quote }}
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
