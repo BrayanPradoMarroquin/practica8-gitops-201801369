@@ -1,0 +1,39 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Prohibir etiqueta latest
+    policies.kyverno.io/category: Práctica 8
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Rechaza cualquier Pod cuya imagen use la etiqueta `latest` o no
+      tenga etiqueta. Fuerza el uso de versiones semánticas.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Las imágenes deben tener un tag explícito. 'latest' está prohibido."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+    - name: validate-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Cada imagen debe tener un tag que no sea 'latest'."
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              image: "*:*"

@@ -1,0 +1,38 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-cosign-signature
+  annotations:
+    policies.kyverno.io/title: Verificar firma de Cosign
+    policies.kyverno.io/category: Práctica 8
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Solo permite desplegar imágenes firmadas con Cosign por la clave
+      pública del proyecto.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: verify-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - microservices
+      verifyImages:
+        - imageReferences:
+            - "brayanprado09/practica7-microservicios-auth:*"
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      REEMPLAZA_ESTO_CON_TU_CLAVE_PUBLICA
+                      -----END PUBLIC KEY-----

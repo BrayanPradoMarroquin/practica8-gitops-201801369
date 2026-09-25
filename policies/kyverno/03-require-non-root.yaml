@@ -1,0 +1,40 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+  annotations:
+    policies.kyverno.io/title: Exigir ejecución sin privilegios de root
+    policies.kyverno.io/category: Práctica 8
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Los Pods deben declarar runAsNonRoot: true y no permitir
+      allowPrivilegeEscalation ni ejecutarse como root.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-runAsNonRoot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "El Pod debe declarar securityContext.runAsNonRoot: true."
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+    - name: require-container-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Cada contenedor debe declarar securityContext.allowPrivilegeEscalation: false."
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              securityContext:
+                allowPrivilegeEscalation: false
