@@ -9,12 +9,8 @@ metadata:
 spec:
   metrics:
     - name: k6-load-test
-      # Un solo análisis por paso del canary; el Job corre ~45s
       interval: 1m
       count: 1
-      # El Job expone un JSON con {passes, fails, p95}. Solo pasa si:
-      #   - passes >= 95 (los checks pasaron)
-      #   - fails <= 5    (menos de 5% fallidos)
       successCondition: result.passes >= 95 && result.fails <= 5
       failureLimit: 1
       provider:
@@ -28,6 +24,11 @@ spec:
                   app: k6-analysis
               spec:
                 restartPolicy: Never
+                # ✅ SecurityContext A NIVEL POD (obligatorio por Kyverno)
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                  fsGroup: 1000
                 containers:
                   - name: k6
                     image: grafana/k6:0.54.0
@@ -35,25 +36,11 @@ spec:
                       - sh
                       - -c
                       - |
-                        k6 run \
-                          --summary-export=/tmp/summary.json \
-                          --quiet \
-                          /scripts/load-test.js || true;
-                        # Convertimos el summary de k6 a un JSON mínimo
-                        # que Argo Rollouts pueda evaluar con successCondition.
-                        apk add --no-cache jq >/dev/null 2>&1 || true;
-                        PASSES=$(jq '[.metrics.checks.values // {} | to_entries[] | .value] | add // 0' /tmp/summary.json 2>/dev/null || echo 0);
-                        FAILS=$(jq '[.metrics.checks.values // {} | to_entries[] | .value] | add // 0' /tmp/summary.json 2>/dev/null || echo 0);
-                        # Si k6 no produjo summary, marcamos fallo total
-                        if [ ! -f /tmp/summary.json ]; then PASSES=0; FAILS=999; fi;
-                        # Extraemos el check real desde el summary de k6
-                        # k6 pone "checks" como métrica con sub-keys passes/fails
-                        if [ -f /tmp/summary.json ]; then
-                          PASSES=$(jq '.metrics.checks.passes // 0' /tmp/summary.json);
-                          FAILS=$(jq '.metrics.checks.fails // 0' /tmp/summary.json);
-                        fi
-                        echo "{\"passes\": $PASSES, \"fails\": $FAILS}" > /tmp/result.json;
-                        cat /tmp/result.json
+                        k6 run --summary-export=/tmp/summary.json --quiet /scripts/load-test.js || true
+                        PASSES=$(grep -o '"passes":[0-9]*' /tmp/summary.json | head -1 | grep -o '[0-9]*' || echo 0)
+                        FAILS=$(grep -o '"fails":[0-9]*' /tmp/summary.json | head -1 | grep -o '[0-9]*' || echo 999)
+                        echo "{\"passes\": $PASSES, \"fails\": $FAILS}"
+                        if [ "$PASSES" -lt 95 ] || [ "$FAILS" -gt 5 ]; then exit 1; fi
                     env:
                       - name: BASE_URL
                         value: "{{ .Values.analysis.serviceUrl }}"
