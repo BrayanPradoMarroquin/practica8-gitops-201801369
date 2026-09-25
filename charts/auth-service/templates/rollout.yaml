@@ -40,6 +40,8 @@ spec:
             - name: DB_USER
               value: {{ .Values.env.DB_USER | quote }}
             - name: DB_PASSWORD
+            - name: FAIL_MODE                                        # ← AÑADIR
+              value: {{ .Values.env.FAIL_MODE | quote }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
