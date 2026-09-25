@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: brayanprado09/practica7-microservicios-auth
-  tag: "v1.0.10-499a18e"
+  tag: "v1.0.9-1bcfe03"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
