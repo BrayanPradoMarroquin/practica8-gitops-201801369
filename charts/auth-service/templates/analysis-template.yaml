@@ -8,7 +8,7 @@ spec:
   metrics:
     - name: health-check
       interval: {{ .Values.analysis.interval }}
-      successCondition: result == "ok"
+      successCondition: result == "OK"
       failureLimit: {{ .Values.analysis.failureThreshold }}
       provider:
         web:
