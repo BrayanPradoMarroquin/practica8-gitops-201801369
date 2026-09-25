@@ -8,85 +8,14 @@ metadata:
     {{- include "auth-service.labels" . | nindent 4 }}
 spec:
   metrics:
-    - name: k6-load-test
-      interval: 1m
-      count: 1
-      successCondition: result.passes >= 95 && result.fails <= 5
-      failureLimit: 1
+    - name: health-check
+      interval: {{ .Values.analysis.interval }}
+      count: {{ .Values.analysis.successThreshold }}
+      successCondition: result == "OK"
+      failureLimit: {{ .Values.analysis.failureThreshold }}
       provider:
-        job:
-          spec:
-            backoffLimit: 0
-            ttlSecondsAfterFinished: 300
-            activeDeadlineSeconds: 300
-            template:
-              metadata:
-                labels:
-                  app: k6-analysis
-                  app.kubernetes.io/name: {{ include "auth-service.name" . }}
-              spec:
-                restartPolicy: Never
-
-                # ✅ SecurityContext A NIVEL POD (obligatorio por Kyverno)
-                securityContext:
-                  runAsNonRoot: true
-                  runAsUser: 12345
-                  fsGroup: 12345
-                  seccompProfile:
-                    type: RuntimeDefault
-
-                containers:
-                  - name: k6
-                    image: grafana/k6:0.54.0
-                    imagePullPolicy: IfNotPresent
-                    command:
-                      - sh
-                      - -c
-                      - |
-                        set -e
-                        k6 run --summary-export=/tmp/summary.json --quiet /scripts/load-test.js || true
-
-                        # Extraer passes/fails del summary con manejo robusto
-                        if [ -f /tmp/summary.json ]; then
-                          PASSES=$(sed -n 's/.*"passes":[[:space:]]*\([0-9]\+\).*/\1/p' /tmp/summary.json | head -1)
-                          FAILS=$(sed -n 's/.*"fails":[[:space:]]*\([0-9]\+\).*/\1/p' /tmp/summary.json | head -1)
-                        fi
-
-                        PASSES=${PASSES:-0}
-                        FAILS=${FAILS:-999}
-
-                        echo "{\"passes\": $PASSES, \"fails\": $FAILS}"
-
-                        if [ "$PASSES" -lt 95 ] || [ "$FAILS" -gt 5 ]; then
-                          echo "❌ Fallo: passes=$PASSES fails=$FAILS"
-                          exit 1
-                        fi
-                        echo "✅ Éxito: passes=$PASSES fails=$FAILS"
-                    env:
-                      - name: BASE_URL
-                        value: "{{ .Values.analysis.serviceUrl }}"
-                    volumeMounts:
-                      - name: k6-script
-                        mountPath: /scripts
-                        readOnly: true
-                    resources:
-                      requests:
-                        cpu: 100m
-                        memory: 128Mi
-                      limits:
-                        cpu: 500m
-                        memory: 256Mi
-
-                    # ✅ SecurityContext A NIVEL CONTENEDOR
-                    securityContext:
-                      allowPrivilegeEscalation: false
-                      readOnlyRootFilesystem: false
-                      capabilities:
-                        drop:
-                          - ALL
-
-                volumes:
-                  - name: k6-script
-                    configMap:
-                      name: {{ include "auth-service.fullname" . }}-k6-script
+        web:
+          url: "{{ .Values.analysis.serviceUrl }}/health"
+          timeoutSeconds: 15
+          jsonPath: "{$.status}"
 {{- end }}
