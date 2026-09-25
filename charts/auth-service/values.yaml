@@ -1,37 +1,76 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
-  repository: docker.io/brayanprado09/practica7-microservicios-auth
-  tag: "1.0.1"       # Semver, nunca latest
+  repository: brayanprado09/auth-service      # <-- CAMBIA ESTO
+  tag: "1.0.1"                               # <-- CAMBIA ESTO
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
 
 service:
   type: ClusterIP
-  port: 3001
+  port: 3001                                 # <-- CAMBIA ESTO si tu servicio usa otro puerto
 
+# Variables de entorno (conexión a Postgres)
 env:
-  DB_HOST: "postgresql"
-  DB_USER: "admin"
-  DB_NAME: "authdb"
-  PORT: "3001"
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: auth-db                            # <-- CAMBIA ESTO
+  DB_USER: admin                          # <-- CAMBIA ESTO
+  # DB_PASSWORD viene desde un Secret
 
+# Nombre del secret con la password de la DB
+existingSecret: auth-db-secret
+
+# Recursos
 resources:
   requests:
-    cpu: "100m"
-    memory: "128Mi"
+    cpu: 100m
+    memory: 128Mi
   limits:
-    cpu: "200m"
-    memory: "256Mi"
+    cpu: 500m
+    memory: 512Mi
 
+# Probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+# Contexto de seguridad (obligatorio por Kyverno)
 securityContext:
   runAsNonRoot: true
-  runAsUser: 1001
-  readOnlyRootFilesystem: true
+  runAsUser: 1000
   allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
 
-probes:
+# Argo Rollouts - canary con 3 pasos
+rollout:
   enabled: true
+  strategy: canary
+  steps:
+    - setWeight: 20
+    - pause: { duration: 30s }
+    - setWeight: 50
+    - pause: { duration: 30s }
+    - setWeight: 100
 
-nodeSelector: {}
-tolerations: []
-affinity: {}
+# AnalysisTemplate - umbrales para promoción/reversión
+analysis:
+  enabled: true
+  interval: 30s
+  successThreshold: 3
+  failureThreshold: 2
+  # URL base del servicio para las pruebas
+  serviceUrl: http://auth-service-canary.microservices.svc.cluster.local:3000

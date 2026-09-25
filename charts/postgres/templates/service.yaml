@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "auth-service.fullname" . }}
+  name: {{ include "postgres.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "auth-service.labels" . | nindent 4 }}
+    {{- include "postgres.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: postgres
       protocol: TCP
-      name: http
+      name: postgres
   selector:
-    {{- include "auth-service.selectorLabels" . | nindent 4 }}
+    {{- include "postgres.selectorLabels" . | nindent 4 }}

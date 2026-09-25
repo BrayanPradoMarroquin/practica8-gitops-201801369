@@ -1,6 +1,0 @@
-apiVersion: v2
-name: books-service
-description: Chart Helm para el microservicio de libros
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
