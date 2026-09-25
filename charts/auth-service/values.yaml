@@ -65,7 +65,7 @@ rollout:
     - setWeight: 100
 
 analysis:
-  enabled: true
+  enabled: false
   interval: 30s
   successThreshold: 3
   failureThreshold: 2
