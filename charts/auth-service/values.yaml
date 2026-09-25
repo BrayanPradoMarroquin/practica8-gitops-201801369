@@ -16,7 +16,7 @@ env:
   DB_PORT: "5432"
   DB_NAME: authdb
   DB_USER: authuser
-  FAIL_MODE: "false"
+  FAIL_MODE: "true"
 
 existingSecret: postgres-secret
 
