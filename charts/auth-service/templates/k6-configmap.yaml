@@ -1,0 +1,12 @@
+{{- if .Values.analysis.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth-service.fullname" . }}-k6-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "auth-service.labels" . | nindent 4 }}
+data:
+  load-test.js: |
+{{ .Files.Get "scripts/load-test.js" | indent 4 }}
+{{- end }}

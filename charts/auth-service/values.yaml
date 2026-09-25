@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: brayanprado09/practica7-microservicios-auth
-  tag: "v1.0.9-1bcfe03"
+  tag: "v1.0.9-1bcfe03"    # ajusta al último tag firmado
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -41,13 +41,11 @@ readinessProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
 
-# ✅ SecurityContext a nivel POD (solo estos campos son válidos aquí)
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
 
-# ✅ SecurityContext a nivel CONTENEDOR (aquí van capabilities y allowPrivilegeEscalation)
 containerSecurityContext:
   allowPrivilegeEscalation: false
   capabilities:
@@ -58,15 +56,24 @@ rollout:
   enabled: true
   strategy: canary
   steps:
+    - setCanaryScale:
+        replicas: 1
+    - pause: { duration: 30s }
     - setWeight: 20
-    - pause: { duration: 30s }
+    - pause: { duration: 60s }
     - setWeight: 50
-    - pause: { duration: 30s }
+    - pause: { duration: 60s }
     - setWeight: 100
 
 analysis:
-  enabled: false
-  interval: 30s
-  successThreshold: 3
-  failureThreshold: 2
+  enabled: true
+  interval: 60s
+  successThreshold: 1
+  failureThreshold: 1
   serviceUrl: http://auth-service.microservices.svc.cluster.local:3001
+
+# Umbrales justificados (documentar en el README)
+thresholds:
+  maxErrorRate: 0.05
+  p95LatencyMs: 500
+  p99LatencyMs: 1000
