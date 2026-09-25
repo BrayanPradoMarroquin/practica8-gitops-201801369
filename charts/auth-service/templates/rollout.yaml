@@ -52,10 +52,13 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
   strategy:
     canary:
+      # Canary "básico" sin traffic routing (usa solo el número de réplicas)
+      # Suficiente para la práctica y no requiere Istio/Nginx
       {{- if .Values.analysis.enabled }}
       analysis:
         templates:
           - templateName: {{ include "auth-service.fullname" . }}-analysis
+        startingStep: 1
       {{- end }}
       steps:
         {{- toYaml .Values.rollout.steps | nindent 8 }}

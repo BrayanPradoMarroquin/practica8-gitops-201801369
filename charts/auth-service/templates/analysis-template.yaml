@@ -6,14 +6,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   metrics:
-    - name: success-rate
+    - name: health-check
       interval: {{ .Values.analysis.interval }}
-      successCondition: result[0] >= 0.95
+      successCondition: result == "ok"
       failureLimit: {{ .Values.analysis.failureThreshold }}
       provider:
         web:
           url: "{{ .Values.analysis.serviceUrl }}/health"
           timeoutSeconds: 10
           jsonPath: "{$.status}"
-          successCondition: "result == 'ok'"
 {{- end }}

@@ -1,26 +1,25 @@
 replicaCount: 1
 
 image:
-  repository: brayanprado09/auth-service      # <-- CAMBIA ESTO
-  tag: "1.0.1"                               # <-- CAMBIA ESTO
+  repository: brayanprado09/practica7-microservicios-auth
+  tag: "latest"          # ⚠️ Cambiar en la iteración 5 por una versión semántica
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
 
 service:
   type: ClusterIP
-  port: 3001                                 # <-- CAMBIA ESTO si tu servicio usa otro puerto
+  port: 3001
 
 # Variables de entorno (conexión a Postgres)
 env:
   DB_HOST: postgres
   DB_PORT: "5432"
-  DB_NAME: auth-db                            # <-- CAMBIA ESTO
-  DB_USER: admin                          # <-- CAMBIA ESTO
+  DB_NAME: authdb
+  DB_USER: authuser
   # DB_PASSWORD viene desde un Secret
 
-# Nombre del secret con la password de la DB
-existingSecret: auth-db-secret
+existingSecret: postgres-secret
 
 # Recursos
 resources:
@@ -35,14 +34,14 @@ resources:
 livenessProbe:
   httpGet:
     path: /health
-    port: 3000
+    port: 3001
   initialDelaySeconds: 15
   periodSeconds: 15
 
 readinessProbe:
   httpGet:
     path: /health
-    port: 3000
+    port: 3001
   initialDelaySeconds: 10
   periodSeconds: 10
 
@@ -72,5 +71,4 @@ analysis:
   interval: 30s
   successThreshold: 3
   failureThreshold: 2
-  # URL base del servicio para las pruebas
-  serviceUrl: http://auth-service-canary.microservices.svc.cluster.local:3000
+  serviceUrl: http://auth-service.microservices.svc.cluster.local:3001
