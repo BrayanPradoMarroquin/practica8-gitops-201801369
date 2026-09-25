@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: brayanprado09/practica7-microservicios-auth
-  tag: "latest"          # ⚠️ Cambiar en la iteración 5 por una versión semántica
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -11,17 +11,14 @@ service:
   type: ClusterIP
   port: 3001
 
-# Variables de entorno (conexión a Postgres)
 env:
   DB_HOST: postgres
   DB_PORT: "5432"
   DB_NAME: authdb
   DB_USER: authuser
-  # DB_PASSWORD viene desde un Secret
 
 existingSecret: postgres-secret
 
-# Recursos
 resources:
   requests:
     cpu: 100m
@@ -30,7 +27,6 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Probes
 livenessProbe:
   httpGet:
     path: /health
@@ -45,16 +41,19 @@ readinessProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
 
-# Contexto de seguridad (obligatorio por Kyverno)
-securityContext:
+# ✅ SecurityContext a nivel POD (solo estos campos son válidos aquí)
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
+  fsGroup: 1000
+
+# ✅ SecurityContext a nivel CONTENEDOR (aquí van capabilities y allowPrivilegeEscalation)
+containerSecurityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
       - ALL
 
-# Argo Rollouts - canary con 3 pasos
 rollout:
   enabled: true
   strategy: canary
@@ -65,7 +64,6 @@ rollout:
     - pause: { duration: 30s }
     - setWeight: 100
 
-# AnalysisTemplate - umbrales para promoción/reversión
 analysis:
   enabled: true
   interval: 30s
