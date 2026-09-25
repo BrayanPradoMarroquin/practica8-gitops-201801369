@@ -1,0 +1,22 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: allow-k6-analysis-jobs
+  namespace: microservices
+spec:
+  exceptions:
+    - policyName: require-non-root
+      ruleNames:
+        - require-runAsNonRoot
+        - require-container-non-root
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+            - Job
+          namespaces:
+            - microservices
+          selector:
+            matchLabels:
+              app: k6-analysis
